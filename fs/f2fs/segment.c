@@ -2437,6 +2437,7 @@ static void get_new_segment(struct f2fs_sb_info *sbi,
 	bool init = true;
 	int go_left = 0;
 	int i;
+	int ret = 0;
 
 	spin_lock(&free_i->segmap_lock);
 
@@ -2452,8 +2453,10 @@ find_other_zone:
 		if (dir == ALLOC_RIGHT) {
 			secno = find_next_zero_bit(free_i->free_secmap,
 							MAIN_SECS(sbi), 0);
-			if (unlikely(secno >= MAIN_SECS(sbi)))
-				goto unlock_bug_on;
+			if (secno >= MAIN_SECS(sbi)) {
+				ret = -ENOSPC;
+				goto out_unlock;
+			}
 		} else {
 			go_left = 1;
 			left_start = hint - 1;
@@ -2469,9 +2472,10 @@ find_other_zone:
 		}
 		left_start = find_next_zero_bit(free_i->free_secmap,
 							MAIN_SECS(sbi), 0);
-		if (unlikely(left_start >= MAIN_SECS(sbi)))
-			goto unlock_bug_on;
-
+		if (left_start >= MAIN_SECS(sbi)) {
+			ret = -ENOSPC;
+			goto out_unlock;
+		}
 		break;
 	}
 	secno = left_start;
@@ -2514,12 +2518,13 @@ got_it:
 
 	__set_inuse(sbi, segno);
 	*newseg = segno;
+out_unlock:
 	spin_unlock(&free_i->segmap_lock);
-	return;
 
-unlock_bug_on:
-	spin_unlock(&free_i->segmap_lock);
-	f2fs_bug_on(sbi, true);
+	if (ret) {
+		f2fs_stop_checkpoint(sbi, false);
+		f2fs_bug_on(sbi, 1);
+	}
 }
 
 static void reset_curseg(struct f2fs_sb_info *sbi, int type, int modified)
