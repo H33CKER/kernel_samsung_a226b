@@ -6059,7 +6059,7 @@ void cgroup_sk_alloc_disable(void)
 
 void cgroup_sk_alloc(struct sock_cgroup_data *skcd)
 {
-	if (cgroup_sk_alloc_disabled) {
+		if (cgroup_sk_alloc_disabled) {
 		skcd->no_refcnt = 1;
 		return;
 	}
@@ -6089,8 +6089,6 @@ void cgroup_sk_clone(struct sock_cgroup_data *skcd)
 {
 	/* Socket clone path */
 	if (skcd->val) {
-		if (skcd->no_refcnt)
-			return;
 		/*
 		 * We might be cloning a socket which is left in an empty
 		 * cgroup and the cgroup might have already been rmdir'd.
